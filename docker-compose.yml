@@ -5,44 +5,50 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
     container_name: elasticsearch
     environment:
-      - discovery.seed_hosts=elasticsearch
+      - discovery.seed_hosts=elasticsearch  # Noeud d'amorçage pour la découverte du cluster
       - cluster.name=docker-cluster
-      - xpack.security.enabled=false  # Désactiver la sécurité pour simplifier le démarrage (à activer en production)
+      - xpack.security.enabled=false  # Désactiver la sécurité pour simplifier le démarrage (activer en production)
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "9200:9200"  # Exposer le port Elasticsearch
+      - "9300:9300"  # Exposer le port de transport Elasticsearch (facultatif)
     volumes:
-      - elasticdata:/usr/share/elasticsearch/data
+      - elasticdata:/usr/share/elasticsearch/data  # Stockage persistant pour les données Elasticsearch
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.16.2
     container_name: kibana
     ports:
-      - "5601:5601"
+      - "5601:5601"  # Exposer le port Kibana
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200  # Pointer Kibana vers Elasticsearch
     depends_on:
-      - elasticsearch
+      - elasticsearch  # Kibana dépend d'une instance Elasticsearch en cours d'exécution
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:7.16.2
     container_name: filebeat
     volumes:
-      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml
-      - /var/log/suricata:/var/log/suricata
+      - ./filebeat:/usr/share/filebeat/  # Monter la configuration filebeat
+      - /var/log/suricata:/var/log/suricata  # Accéder aux logs Suricata
     depends_on:
-      - elasticsearch
-    command: ./filebeat -e
+      - elasticsearch  # Filebeat dépend d'une instance Elasticsearch en cours d'exécution
+    command: ./filebeat -e  # Lancer Filebeat avec les variables d'environnement
 
   suricata:
-    image: suricata/suricata
+    image: jasonish/suricata:latest
     container_name: suricata
     volumes:
-      - ./suricata.yaml:/etc/suricata/suricata.yaml
-      - ./rules:/etc/suricata/rules
-    command: suricata -c /etc/suricata/suricata.yaml
+      - ./suricata:/etc/suricata  # Monter le répertoire de configuration Suricata
+      - ./rules:/etc/suricata/rules  # Monter le répertoire des règles personnalisées
+    command: suricata -c /etc/suricata/suricata.yaml  # Lancer Suricata avec la configuration
     depends_on:
-      - elasticsearch
+      - elasticsearch  # Suricata dépend d'une instance Elasticsearch en cours d'exécution
+
+networks:
+  my-elasticsearch-network:  # Définir un réseau personnalisé
 
 volumes:
-  elasticdata:
+  elasticdata:  # Volume persistant pour les données Elasticsearch
+
+# Vérification des erreurs avec des bilans de santé (facultatif)
+# Nombre de tentatives avant de considérer comme non sain
